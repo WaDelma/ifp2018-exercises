@@ -26,17 +26,20 @@ module W2 where
 -- Do not add any other imports! :)
 import Data.List
 import Data.Char
+-- import Control.Arrow
 
 -- Ex 1: Define the constant years, that is a list of the values 1982,
 -- 2004 and 2012 in this order.
 
-years = undefined
+years :: [Integer]
+years = [1982, 2004, 2012]
 
 -- Ex 2: define the function measure that for an empty list returns -1
 -- and for other lists returns the length of the list.
 
 measure :: [String] -> Int
-measure ss = undefined
+measure [] = -1
+measure x = length x
 
 -- Ex 3: define the function takeFinal, which returns the n last
 -- elements of the given list.
@@ -44,7 +47,7 @@ measure ss = undefined
 -- If the list is shorter than n, return all elements.
 
 takeFinal :: Int -> [Int] -> [Int]
-takeFinal n xs = undefined
+takeFinal n xs = drop ((length xs) - n) xs
 
 -- Ex 4: remove the nth element of the given list. More precisely,
 -- return a list that is identical to the given list except the nth
@@ -59,7 +62,9 @@ takeFinal n xs = undefined
 -- The [a] in the type signature means "a list of any type"
 
 remove :: Int -> [a] -> [a]
-remove i xs = undefined
+remove 0 (_:xs) = xs
+remove i xs = (\(x, y) -> (x ++ tail y)) (splitAt i xs)
+-- remove i xs = (uncurry (++)) ((id *** tail) (splitAt i xs)) TODO: f (a, b) -> f a b
 
 -- Ex 5: substring i n s should return the length n substring of s
 -- starting at index i.
