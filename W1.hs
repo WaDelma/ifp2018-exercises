@@ -1,5 +1,9 @@
 module W1 where
 
+import Data.List;
+import Data.Function;
+import Data.Maybe;
+
 -- Week 1:
 --   * defining functions
 --   * basic expressions
@@ -29,13 +33,13 @@ double x = x + x
 -- four.
 
 quadruple :: Integer -> Integer
-quadruple = double double
+quadruple = double <$> double
 
 -- Ex 4: define the function poly2. It should take four arguments of
 -- type Double, a, b, c, and x and return a*x^2+b*x+c. Give poly2 a
 -- type signature, i.e. poly2 :: something.
 
-poly2 :: Double -> Double -> Double -> Double -> _
+poly2 :: Double -> Double -> Double -> Double -> Double
 poly2 a b c x = a*x^2 + b*x + c
 
 -- Ex 5: define the function eeny that returns "eeny" for even inputs
@@ -44,7 +48,7 @@ poly2 a b c x = a*x^2 + b*x + c
 -- Ps. have a look at the built in function "even"
 
 eeny :: Integer -> String
-eeny n if even n = "eeny"
+eeny n | even n = "eeny"
 eeny _ = "meeny"
 
 -- Ex 6: fizzbuzz! Define the a function fizzbuzz that returns "Fizz"
@@ -54,11 +58,12 @@ eeny _ = "meeny"
 --
 -- You can use the function mod to compute modulo.
 
-fizzbuzz n = f (n (mod) 3) (n (mod) 5)
-    where f 0 0 = "FizzBuzz"
-          f 0 _ = "Buzz"
-          f _ 0 = "Fizz"
-          f _ _ = ""
+fizzbuzz n =
+    case (n `mod` 3, n `mod` 5) of 
+        (0, 0) -> "FizzBuzz"
+        (0, _) -> "Fizz"
+        (_, 0) -> "Buzz"
+        (_, _) -> ""
 
 -- Ex 7: define a function isZero that returns True if it is given an
 -- Integer that is 0, and False otherwise. Give isZero a type signature.
@@ -92,7 +97,10 @@ power n k = n * power n (k - 1)
 -- division.
 
 ilog2 :: Integer -> Integer
-ilog2 = undefined
+ilog2 = ilog2' 0
+
+ilog2' t 1 = t
+ilog2' t n = ilog2' (t + 1) (n `div` 2)
 
 -- Ex 11: compute binomial coefficients using recursion. Binomial
 -- coefficients are defined by the following equations:
@@ -104,7 +112,11 @@ ilog2 = undefined
 -- Hint! pattern matching is your friend.
 
 binomial :: Integer -> Integer -> Integer
-binomial = undefined
+binomial 0 k | k > 0 = 0
+binomial _ 0 = 1
+binomial n k =
+    let n' = n - 1
+    in binomial n' k + binomial n' (k - 1)
 
 -- Ex 12: The tribonacci numbers are defined by the equations
 --
@@ -117,13 +129,20 @@ binomial = undefined
 -- computes T(n). You'll probably want to define a helper function.
 
 tribonacci :: Integer -> Integer
-tribonacci = undefined
+tribonacci = tribonacci' 1 1 2
+
+tribonacci' :: Integer -> Integer -> Integer -> Integer -> Integer
+tribonacci' a _ _ 1 = a
+tribonacci' _ b _ 2 = b
+tribonacci' _ _ c 3 = c
+tribonacci' a b c n = tribonacci' b c (a + b + c) (n - 1)
 
 -- Ex 13: implement the euclidean algorithm for finding the greatest
 -- common divisor: http://en.wikipedia.org/wiki/Euclidean_algorithm
 
 myGcd :: Integer -> Integer -> Integer
-myGcd = undefined
+myGcd a 0 = a
+myGcd a b = gcd b (a `mod` b)
 
 -- Ex 14: The Haskell Prelude (standard library) defines the type
 -- Ordering with values LT, GT and EQ. You try out Ordering by
@@ -151,7 +170,9 @@ myGcd = undefined
 --   funnyCompare 2 3 ==> LT
 
 funnyCompare :: Int -> Int -> Ordering
-funnyCompare = undefined
+funnyCompare a b | even a && odd b = LT
+funnyCompare a b | odd a && even b = GT
+funnyCompare a b = compare a b
 
 -- Ex 15: Implement the function funnyMin that returns the minimum of
 -- its two arguments, according to the ordering implemented by
@@ -162,7 +183,11 @@ funnyCompare = undefined
 -- expression or define a helper function.
 
 funnyMin :: Int -> Int -> Int
-funnyMin = undefined
+funnyMin a b =
+    case funnyCompare a b of
+        GT -> b
+        _ -> a
+    
 
 -- Ex 16: implement the recursive function pyramid that returns
 -- strings like this:
@@ -178,7 +203,13 @@ funnyMin = undefined
 -- * you'll need a (recursive) helper function
 
 pyramid :: Integer -> String
-pyramid = undefined
+pyramid n = pyramid' n n
+
+pyramid' :: Integer -> Integer -> String
+pyramid' m 0 = show m
+pyramid' m n =
+    let m' = show (m - n)
+    in m' ++ "," ++ pyramid' m (n - 1) ++ "," ++ m'
 
 -- Ex 17: implement the function smallestDivisor that returns the
 -- smallest number (greater than 1) that divides the given number.
@@ -193,7 +224,9 @@ pyramid = undefined
 -- remember this in the next exercise!
 
 smallestDivisor :: Integer -> Integer
-smallestDivisor = undefined
+smallestDivisor n =
+    let max = ceiling $ sqrt $ fromIntegral n
+    in fromMaybe n $ find (\m -> n `mod` m == 0) [2..max]
 
 -- Ex 18: implement a function isPrime that checks if the given number
 -- is a prime number. Use the function smallestDivisor.
@@ -201,11 +234,13 @@ smallestDivisor = undefined
 -- Ps. 0 and 1 are not prime numbers
 
 isPrime :: Integer -> Bool
-isPrime = undefined
+isPrime 0 = False
+isPrime 1 = False
+isPrime n = n == smallestDivisor n
 
 -- Ex 19: implement a function nextPrime that returns the first prime
 -- number that comes after the given number. Use the function isPrime
 -- you just defined.
 
 nextPrime :: Integer -> Integer
-nextPrime = undefined
+nextPrime n = fromJust $ find isPrime [(n + 1)..]
