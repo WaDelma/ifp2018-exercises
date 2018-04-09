@@ -172,7 +172,8 @@ fromTo n k
 -- Ps. you'll probably need a recursive helper function
 
 sums :: Int -> [Int]
-sums i = sum <$> (fromTo 1) <$> [1..i]
+-- sums i = sum <$> (fromTo 1) <$> [1..i]
+sums i = sum <$> (\n -> [1..n]) <$> [1..i]
 
 -- Ex 13: using list pattern matching and recursion, define a function
 -- mylast that returns the last value of the given list. For an empty
@@ -191,14 +192,10 @@ mylast _ (x:xs) = mylast x xs
 -- library list functions.
 
 sorted :: [Int] -> Bool
-sorted (x:xs) =
-    let sorted' _ [] = True
-        sorted' prev (x:xs)
-            | prev <= x = sorted' x xs
-            | otherwise = False
-    in sorted' x xs
-
-
+sorted (p:x:xs)
+    | p <= x = sorted (x:xs)
+    | otherwise = False
+sorted _ = True
 
 -- Ex 15: compute the partial sums of the given list like this:
 --
