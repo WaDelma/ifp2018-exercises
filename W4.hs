@@ -82,9 +82,19 @@ readWords n = do
 readUntil :: (String -> Bool) -> IO [String]
 readUntil f = do
     s <- takeWhileM isJust $ repeat getMaybeLine
-    return . takeWhile (not . f) . concat $ mapM id s
+    return . takeWhile (not . f) $ mapMaybe id s
 
--- Returns line from stdin or nothing if there isn't any
+
+mapMaybe :: (a -> Maybe b) -> [a] -> [b]
+mapMaybe _ [] = []
+mapMaybe f (x:xs) = case f x of
+    Just a -> a:mapMaybe f xs
+    Nothing -> mapMaybe f xs
+
+isJust :: Maybe a -> Bool
+isJust Nothing = False
+isJust _ = True
+
 getMaybeLine :: IO (Maybe String)
 getMaybeLine = do
     t <- isEOF
@@ -92,12 +102,6 @@ getMaybeLine = do
         then return Nothing
         else Just <$> getLine
 
--- Returns true if there is something or false if nothing
-isJust :: Maybe a -> Bool
-isJust Nothing = False
-isJust _ = True
-
--- takeWhile, applied to a predicate p and a list of monad wrapped xs, returns the monad wrapped prefix (possibly empty) of xs of elements that satisfy p
 takeWhileM :: (Monad m) => (a -> Bool) -> [m a] -> m [a]
 takeWhileM _ [] = return []
 takeWhileM p (m:ms) = do 
@@ -114,8 +118,19 @@ takeWhileM p (m:ms) = do
 -- Reminder: do not use IORef
 
 isums :: Int -> IO Int
-isums n = undefined
+isums n = foldM (bracketr return print .: rliftM (+)) 0 $ const readLn <$> [0..n]
 
+(.:) :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b)
+(.:) a b = (fmap . fmap) a b
+
+rliftM :: (Monad m) => (a -> b -> c) -> a -> m b -> m c
+rliftM f a b = liftM2 f (return a) b
+
+bracketr :: (a -> IO c) -> (a -> IO b) -> IO a -> IO c
+bracketr g f a = do
+    x <- a
+    f x
+    g x
 
 ------------------------------------------------------------------------------
 -- Ex 8: when is a useful function, but its first argument has type
@@ -123,7 +138,14 @@ isums n = undefined
 -- argument has type IO Bool.
 
 whenM :: IO Bool -> IO () -> IO ()
-whenM cond op = undefined
+whenM cond op = void $ whenM' cond op
+    -- cond >>= (flip when $ op)
+
+whenM' :: IO Bool -> IO () -> IO Bool
+whenM' cond op = do
+        x <- cond
+        when x op
+        return x
 
 ------------------------------------------------------------------------------
 -- Ex 9: implement the while loop. while condition operation should
@@ -141,7 +163,7 @@ whenM cond op = undefined
 -- This prints YAY! as long as the user keeps answering Y
 
 while :: IO Bool -> IO () -> IO ()
-while cond op = undefined
+while cond op = void $ takeWhileM id $ repeat $ whenM' cond op
 
 ------------------------------------------------------------------------------
 -- Ex 10: given a string and an IO operation, print the string, run
@@ -161,7 +183,11 @@ while cond op = undefined
 --     4. returns the line read from the user
 
 debug :: String -> IO a -> IO a
-debug s op = undefined
+debug s op = do
+    putStrLn s
+    a <- op
+    putStrLn s
+    return a
 
 ------------------------------------------------------------------------------
 -- Ex 11: Reimplement mapM_ (specialized to the IO type) using
@@ -174,14 +200,19 @@ debug s op = undefined
 -- Remember to use `return ()` so that you get the type right!
 
 mymapM_ :: (a -> IO b) -> [a] -> IO ()
-mymapM_ = undefined
+mymapM_ _ [] = return ()
+mymapM_ op (a:as) = op a >>= \_ -> mymapM_ op as
 
 ------------------------------------------------------------------------------
 -- Ex 12: Reimplement the function forM using pattern matching and
 -- recursion.
 
 myforM :: [a] -> (a -> IO b) -> IO [b]
-myforM as f = undefined
+myforM [] _ = return []
+myforM (a:as) f = do
+    a' <- f a
+    as' <- myforM as f
+    return $ a':as'
 
 ------------------------------------------------------------------------------
 -- Ex 13: sometimes one bumps into IO operations that return IO
@@ -207,7 +238,7 @@ myforM as f = undefined
 --        replicateM l getLine
 
 doubleCall :: IO (IO a) -> IO a
-doubleCall op = undefined
+doubleCall op = op >>= id
 
 ------------------------------------------------------------------------------
 -- Ex 14: implement the analogue of function composition (the (.)
@@ -226,7 +257,7 @@ doubleCall op = undefined
 --   3. return the result (of type b)
 
 compose :: (a -> IO b) -> (c -> IO a) -> c -> IO b
-compose op1 op2 c = undefined
+compose op1 op2 c = op2 c >>= op1
 
 ------------------------------------------------------------------------------
 -- Ex 15: This exercises is about IORefs and operations that return
@@ -252,7 +283,9 @@ compose op1 op2 c = undefined
 --  4
 
 mkCounter :: IO (IO (), IO Int)
-mkCounter = undefined
+mkCounter = do
+    x <- newIORef 0
+    return (modifyIORef x (+1), readIORef x)
 
 ------------------------------------------------------------------------------
 -- Ex 16: fetch from the given file (Handle) the lines with the given
@@ -290,7 +323,7 @@ readCSV path = undefined
 -- > file b version of the line
 --
 -- Example:
---
+--undefined
 -- File a contents:
 -- a
 -- aa
