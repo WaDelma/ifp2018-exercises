@@ -118,7 +118,6 @@ isums =
             isums' m (n - 1)
     in isums' 0
 
-
 ------------------------------------------------------------------------------
 -- Ex 8: when is a useful function, but its first argument has type
 -- Bool. Write a function that behaves similarly but the first
