@@ -26,14 +26,16 @@ import System.IO
 -- first line should be HELLO and the second one WORLD
 
 hello :: IO ()
-hello = undefined
+hello = do
+    putStrLn "HELLO"
+    putStrLn "WORLD"
 
 ------------------------------------------------------------------------------
 -- Ex 2: define the IO operation greet that takes a name as an
 -- argument and prints a line "HELLO name".
 
 greet :: String -> IO ()
-greet name = undefined
+greet name = putStrLn $ "HELLO " ++ name
 
 ------------------------------------------------------------------------------
 -- Ex 3: define the IO operation greet2 that reads a name from the
@@ -43,7 +45,9 @@ greet name = undefined
 -- Try to use the greet operation in your solution.
 
 greet2 :: IO ()
-greet2 = undefined
+greet2 = do
+    name <- getLine
+    greet name
 
 ------------------------------------------------------------------------------
 -- Ex 4: define the IO operation getSum that reads two numbers, on
@@ -52,14 +56,19 @@ greet2 = undefined
 -- Remember the operation readLn.
 
 getSum :: IO Int
-getSum = undefined
+getSum = do
+    a <- readLn
+    b <- readLn
+    return $ a + b
 
 ------------------------------------------------------------------------------
 -- Ex 5: define the IO operation readWords n which reads n lines from
 -- the user and returns them in alphabetical order.
 
 readWords :: Int -> IO [String]
-readWords n = undefined
+readWords n = do
+    s <- replicateM n getLine
+    return $ sort s
 
 ------------------------------------------------------------------------------
 -- Ex 6: define the IO operation readUntil f, which reads lines from
@@ -71,7 +80,31 @@ readWords n = undefined
 -- recursive helper operation).
 
 readUntil :: (String -> Bool) -> IO [String]
-readUntil f = undefined
+readUntil f = do
+    s <- takeWhileM isJust $ repeat getMaybeLine
+    return . takeWhile (not . f) . concat $ mapM id s
+
+-- Returns line from stdin or nothing if there isn't any
+getMaybeLine :: IO (Maybe String)
+getMaybeLine = do
+    t <- isEOF
+    if t
+        then return Nothing
+        else Just <$> getLine
+
+-- Returns true if there is something or false if nothing
+isJust :: Maybe a -> Bool
+isJust Nothing = False
+isJust _ = True
+
+-- takeWhile, applied to a predicate p and a list of monad wrapped xs, returns the monad wrapped prefix (possibly empty) of xs of elements that satisfy p
+takeWhileM :: (Monad m) => (a -> Bool) -> [m a] -> m [a]
+takeWhileM _ [] = return []
+takeWhileM p (m:ms) = do 
+    x <- m
+    if p x
+        then liftM (x:) (takeWhileM p ms) 
+        else return []
 
 ------------------------------------------------------------------------------
 -- Ex 7: isums n should read n numbers from the user and return their
@@ -82,6 +115,7 @@ readUntil f = undefined
 
 isums :: Int -> IO Int
 isums n = undefined
+
 
 ------------------------------------------------------------------------------
 -- Ex 8: when is a useful function, but its first argument has type
