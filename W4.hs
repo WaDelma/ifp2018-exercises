@@ -295,7 +295,13 @@ mkCounter = do
 -- Have a look at the docs for the System.IO module for help.
 
 hFetchLines :: Handle -> [Int] -> IO [String]
-hFetchLines h nums = fst <$> foldM (\(r, (n:ns)) (c, v) -> return $ if n == c then (r ++ [v], ns) else (r, n:ns)) ([], nums) <$> zip [1..] <$> lines <$> hGetContents h
+hFetchLines h nums = hFetchLines' (lines <$> hGetContents h) nums
+
+hFetchLines' :: IO [String] -> [Int] -> IO [String]
+hFetchLines' s nums =
+    let f (r, []) _ = (r, [])
+        f (r, (n:ns)) (c, v) = if n == c then (r ++ [v], ns) else (r, n:ns)
+    in fmap fst $ foldM ((fmap . fmap) return f) ([], nums) <$> zip [1..] <$> s >>= id -- TODO: Understand why this build without >>= id
 
 ------------------------------------------------------------------------------
 -- Ex 17: CSV is a file format that stores a two-dimensional array of
