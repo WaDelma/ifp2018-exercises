@@ -295,7 +295,7 @@ mkCounter = do
 -- Have a look at the docs for the System.IO module for help.
 
 hFetchLines :: Handle -> [Int] -> IO [String]
-hFetchLines h nums = undefined
+hFetchLines h nums = fst <$> foldM (\(r, (n:ns)) (c, v) -> return $ if n == c then (r ++ [v], ns) else (r, n:ns)) ([], nums) <$> zip [1..] <$> lines <$> hGetContents h
 
 ------------------------------------------------------------------------------
 -- Ex 17: CSV is a file format that stores a two-dimensional array of
