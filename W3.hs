@@ -416,8 +416,7 @@ rgb Red   = [1, 0, 0]
 rgb Green = [0, 1, 0]
 rgb Blue  = [0, 0, 1]
 rgb (Mix a b) = (saturateTo 1) <$> uncurry (+) <$> rgb a `zip` rgb b
-rgb (Darken a c) = (* (1 - a)) <$> (rgb c)
-
+rgb (Darken a c) = (* (1 - a)) <$> rgb c
 
 saturateTo :: Ord a => a -> a -> a
 saturateTo m v

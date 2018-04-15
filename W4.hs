@@ -45,9 +45,7 @@ greet name = putStrLn $ "HELLO " ++ name
 -- Try to use the greet operation in your solution.
 
 greet2 :: IO ()
-greet2 = do
-    name <- getLine
-    greet name
+greet2 = getLine >>= greet
 
 ------------------------------------------------------------------------------
 -- Ex 4: define the IO operation getSum that reads two numbers, on
@@ -56,19 +54,14 @@ greet2 = do
 -- Remember the operation readLn.
 
 getSum :: IO Int
-getSum = do
-    a <- readLn
-    b <- readLn
-    return $ a + b
+getSum = sum <$> sequence [readLn, readLn]
 
 ------------------------------------------------------------------------------
 -- Ex 5: define the IO operation readWords n which reads n lines from
 -- the user and returns them in alphabetical order.
 
 readWords :: Int -> IO [String]
-readWords n = do
-    s <- replicateM n getLine
-    return $ sort s
+readWords n = sort <$> replicateM n getLine
 
 ------------------------------------------------------------------------------
 -- Ex 6: define the IO operation readUntil f, which reads lines from
@@ -118,19 +111,13 @@ takeWhileM p (m:ms) = do
 -- Reminder: do not use IORef
 
 isums :: Int -> IO Int
-isums n = foldM (bracketr return print .: rliftM (+)) 0 $ const readLn <$> [0..n]
-
-(.:) :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b)
-(.:) a b = (fmap . fmap) a b
-
-rliftM :: (Monad m) => (a -> b -> c) -> a -> m b -> m c
-rliftM f a b = liftM2 f (return a) b
-
-bracketr :: (a -> IO c) -> (a -> IO b) -> IO a -> IO c
-bracketr g f a = do
-    x <- a
-    f x
-    g x
+isums = 
+    let isums' c 0 = return c
+        isums' c n = do
+            m <- readLn >>= return . (+c)
+            print $ m
+            isums' m (n - 1)
+    in isums' 0
 
 ------------------------------------------------------------------------------
 -- Ex 8: when is a useful function, but its first argument has type
@@ -209,10 +196,11 @@ mymapM_ op (a:as) = op a >>= \_ -> mymapM_ op as
 
 myforM :: [a] -> (a -> IO b) -> IO [b]
 myforM [] _ = return []
-myforM (a:as) f = do
-    a' <- f a
-    as' <- myforM as f
-    return $ a':as'
+myforM (a:as) f = (:) <$> f a <*> myforM as f
+    -- do
+    -- a' <- f a
+    -- as' <- myforM as f
+    -- return $ a':as'
 
 ------------------------------------------------------------------------------
 -- Ex 13: sometimes one bumps into IO operations that return IO
@@ -238,7 +226,7 @@ myforM (a:as) f = do
 --        replicateM l getLine
 
 doubleCall :: IO (IO a) -> IO a
-doubleCall op = op >>= id
+doubleCall = join
 
 ------------------------------------------------------------------------------
 -- Ex 14: implement the analogue of function composition (the (.)
@@ -257,7 +245,7 @@ doubleCall op = op >>= id
 --   3. return the result (of type b)
 
 compose :: (a -> IO b) -> (c -> IO a) -> c -> IO b
-compose op1 op2 c = op2 c >>= op1
+compose = (<=<)
 
 ------------------------------------------------------------------------------
 -- Ex 15: This exercises is about IORefs and operations that return
@@ -295,13 +283,25 @@ mkCounter = do
 -- Have a look at the docs for the System.IO module for help.
 
 hFetchLines :: Handle -> [Int] -> IO [String]
-hFetchLines h nums = hFetchLines' (lines <$> hGetContents h) nums
+hFetchLines h nums = hFetchLines' 0 nums <$> (lines <$> hGetContents h)
 
-hFetchLines' :: IO [String] -> [Int] -> IO [String]
-hFetchLines' s nums =
-    let f (r, []) _ = (r, [])
-        f (r, (n:ns)) (c, v) = if n == c then (r ++ [v], ns) else (r, n:ns)
-    in fmap fst $ foldM ((fmap . fmap) return f) ([], nums) <$> zip [1..] <$> s >>= id -- TODO: Understand why this build without >>= id
+hFetchLines' :: Int -> [Int] -> [String] -> [String]
+hFetchLines' m (n:nums) (s:ss)
+    | m == n = s:hFetchLines' (m + 1) nums ss
+    | otherwise = hFetchLines' (m + 1) (n:nums) ss
+hFetchLines' _ _ _ = []
+--     let f :: ([String], [Int]) -> (Int, String) -> ([String], [Int])
+--         f (r, ns) (c, v) = fromMaybe (r, ns) $ safeHeadTail ns >>= \(n, ns) -> return $ if n == c then (r ++ [v], ns) else (r, n:ns)
+--     in fmap fst $ foldM ((fmap . fmap) return f) ([], nums) <$> zip [1..] <$> s >>= id
+--     -- in fst <$> foldr (flip f) ([], nums) <$> zip [1..] <$> s
+
+-- safeHeadTail :: [a] -> Maybe (a, [a])
+-- safeHeadTail [] = Nothing
+-- safeHeadTail (x:xs) = Just (x, xs)
+
+-- fromMaybe :: a -> Maybe a -> a
+-- fromMaybe a Nothing = a
+-- fromMaybe _ (Just a)  = a
 
 ------------------------------------------------------------------------------
 -- Ex 17: CSV is a file format that stores a two-dimensional array of
@@ -318,7 +318,19 @@ hFetchLines' s nums =
 -- NB! The lines might have different numbers of elements.
 
 readCSV :: FilePath -> IO [[String]]
-readCSV path = undefined
+readCSV path = do
+        contents <- openFile path ReadMode >>= hGetContents
+        return $ split (==',') <$> lines contents
+
+split :: (Char -> Bool) -> String -> [String]
+split = let 
+    split' cur _ [] = [reverse cur]
+    split' cur p (c:cs) = if p c
+        then (reverse cur):split' "" p cs
+        else split' (c:cur) p cs
+    in split' ""
+
+
 
 ------------------------------------------------------------------------------
 -- Ex 18: your task is to compare two files, a and b. The files should
@@ -329,7 +341,6 @@ readCSV path = undefined
 -- > file b version of the line
 --
 -- Example:
---undefined
 -- File a contents:
 -- a
 -- aa
@@ -361,7 +372,13 @@ readCSV path = undefined
 -- [String] -> [String] -> [String].
 
 compareFiles :: FilePath -> FilePath -> IO ()
-compareFiles a b = undefined
+compareFiles a b = do
+    as <- openFile a ReadMode >>= hGetContents
+    bs <- openFile b ReadMode >>= hGetContents
+    forM_ (lines as `zip` lines bs) $ \(a, b) -> do
+        when (a /= b) $ do
+            putStrLn $ "< " ++ a
+            putStrLn $ "> " ++ b
 
 ------------------------------------------------------------------------------
 -- Ex 19: In this exercise we see how a program can be split into a
@@ -390,4 +407,11 @@ compareFiles a b = undefined
 --
 
 interact' :: ((String,st) -> (Bool,String,st)) -> st -> IO st
-interact' f state = undefined
+interact' f state = do
+    line <- getLine
+    let (b, s, newState) = curry f line state
+    putStr s
+    if b then
+        interact' f newState
+    else
+        return newState
