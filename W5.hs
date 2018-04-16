@@ -2,6 +2,10 @@ module W5 where
 
 import System.Random
 import Data.List
+import Data.Function
+import Data.Maybe
+import Control.Monad
+import Control.Arrow
 
 -- Week 5:
 --  - using typeclasses
@@ -28,10 +32,10 @@ import Data.List
 -- 3 *! True ==> [True,True,True]
 
 (%$) :: String -> String -> String
-x %$ y = undefined
+x %$ y = x ++ y ++ x
 
 (*!) :: Int -> a -> [a]
-n *! val = undefined
+n *! val = const val <$> [0..n]
 
 ------------------------------------------------------------------------------
 -- Ex 2: implement the function allEqual which returns True if all
@@ -47,7 +51,10 @@ n *! val = undefined
 -- you remove the Eq a => constraint from the type!
 
 allEqual :: Eq a => [a] -> Bool
-allEqual xs = undefined
+allEqual (x:xs) = isJust $ foldM (fstSatisfies (==)) x $ xs
+allEqual _ = True
+
+fstSatisfies p a b = if p a b then Just a else Nothing
 
 ------------------------------------------------------------------------------
 -- Ex 3: implement the function secondSmallest that returns the second
@@ -64,7 +71,10 @@ allEqual xs = undefined
 -- secondSmallest [5,3,7,2,3,1]  ==>  Just 2
 
 secondSmallest :: Ord a => [a] -> Maybe a
-secondSmallest xs = undefined
+secondSmallest as =
+  case sort as of
+    _:a:_ -> Just a
+    _ -> Nothing
 
 ------------------------------------------------------------------------------
 -- Ex 4: Implement the function incrementKey, that takes a list of
@@ -80,8 +90,9 @@ secondSmallest xs = undefined
 --   incrementKey True [(True,1),(False,3),(True,4)] ==> [(True,2),(False,3),(True,5)]
 --   incrementKey 'a' [('a',3.4)] ==> [('a',4.4)]
 
-incrementKey :: k -> [(k,v)] -> [(k,v)]
-incrementKey = undefined
+-- NOTE: I really would like to replace Num with Rig/Semiring
+incrementKey :: (Eq k, Num v) => k -> [(k,v)] -> [(k,v)]
+incrementKey key m = (\(k, v) -> if k == key then (k, v + 1) else (k, v)) <$> m
 
 ------------------------------------------------------------------------------
 -- Ex 5: compute the average of a list of values of the Fractional
@@ -97,7 +108,7 @@ incrementKey = undefined
 
 
 average :: Fractional a => [a] -> a
-average xs = undefined
+average xs = sum xs / (fromIntegral $ length xs)
 
 ------------------------------------------------------------------------------
 -- Ex 6: define an Eq instance for the type Foo below.
@@ -108,16 +119,26 @@ data Foo = Bar | Quux | Xyzzy
   deriving Show
 
 instance Eq Foo where
-  (==) = error "implement me"
+  (==) Bar Bar = True
+  (==) Quux Quux = True
+  (==) Xyzzy Xyzzy = True
+  (==) _ _ = False
 
 ------------------------------------------------------------------------------
 -- Ex 7: implement an Ord instance for Foo so that Quux < Bar < Xyzzy
 
+(.:) :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b) 
+(.:) = (fmap.fmap)
+
 instance Ord Foo where
-  compare = error "implement me?"
-  (<=) = error "and me?"
-  min = error "and me?"
-  max = error "and me?"
+  compare a b | a == b = EQ
+  compare Quux _ = LT
+  compare _ Quux = GT
+  compare _ Xyzzy = LT
+  compare Xyzzy _ = GT
+  (<=) = (/=GT) .: compare
+  min a b = if a <= b then a else b
+  max a b = if a <= b then b else a
 
 ------------------------------------------------------------------------------
 -- Ex 8: here is a type for a 3d vector. Implement an Eq instance for it.
@@ -125,8 +146,26 @@ instance Ord Foo where
 data Vector = Vector Integer Integer Integer
   deriving Show
 
+
+data Iso a b = Iso {
+  embed :: a -> b,
+  project :: b -> a
+}
+
+apEmbed :: Iso a b -> (b -> b) -> a -> a
+apEmbed iso f = project iso . f . embed iso
+
+apEmbed2 :: Iso a b -> (b -> b -> b) -> a -> a -> a
+apEmbed2 iso f = project iso .: on f (embed iso)
+
+vl :: Iso Vector [Integer]
+vl = Iso {
+  embed = \(Vector a b c) -> [a, b, c],
+  project = \[a, b, c] -> Vector a b c
+}
+
 instance Eq Vector where
-  (==) = error "implement me"
+  (==) a b = embed vl a == embed vl b
 
 ------------------------------------------------------------------------------
 -- Ex 9: implementa Num instance for Vector such that all the
@@ -141,7 +180,16 @@ instance Eq Vector where
 -- abs (Vector (-1) 2 (-3))    ==> Vector 1 2 3
 -- signum (Vector (-1) 2 (-3)) ==> Vector (-1) 1 (-1)
 
+(^^.) :: (Functor t, Functor u) => (b -> c) -> (a -> t (u b)) -> a -> t (u c)
+(^^.) f g = (f .:) . g
+
 instance Num Vector where
+  (+) = apEmbed2 vl $ uncurry (+) ^^. zip
+  (-) = apEmbed2 vl $ uncurry (-) ^^. zip
+  (*) = apEmbed2 vl $ uncurry (*) ^^. zip
+  abs = apEmbed vl (abs <$>)
+  signum = apEmbed vl (signum <$>)
+  fromInteger a = Vector a a a
 
 ------------------------------------------------------------------------------
 -- Ex 10: compute how many times each value in the list occurs. Return
