@@ -75,14 +75,13 @@ readWords n = sort <$> replicateM n getLine
 readUntil :: (String -> Bool) -> IO [String]
 readUntil f = do
     s <- takeWhileM isJust $ repeat getMaybeLine
-    return . takeWhile (not . f) $ mapMaybe id s
+    return . takeWhile (not . f) $ catMaybes s
 
-
-mapMaybe :: (a -> Maybe b) -> [a] -> [b]
-mapMaybe _ [] = []
-mapMaybe f (x:xs) = case f x of
-    Just a -> a:mapMaybe f xs
-    Nothing -> mapMaybe f xs
+catMaybes :: [Maybe a] -> [a]
+catMaybes [] = []
+catMaybes (x:xs) = case x of
+    Just a -> a:catMaybes xs
+    Nothing -> catMaybes xs
 
 isJust :: Maybe a -> Bool
 isJust Nothing = False
@@ -100,7 +99,7 @@ takeWhileM _ [] = return []
 takeWhileM p (m:ms) = do 
     x <- m
     if p x
-        then liftM (x:) (takeWhileM p ms) 
+        then (x:) <$> takeWhileM p ms 
         else return []
 
 ------------------------------------------------------------------------------
@@ -197,10 +196,6 @@ mymapM_ op (a:as) = op a >>= \_ -> mymapM_ op as
 myforM :: [a] -> (a -> IO b) -> IO [b]
 myforM [] _ = return []
 myforM (a:as) f = (:) <$> f a <*> myforM as f
-    -- do
-    -- a' <- f a
-    -- as' <- myforM as f
-    -- return $ a':as'
 
 ------------------------------------------------------------------------------
 -- Ex 13: sometimes one bumps into IO operations that return IO
@@ -283,25 +278,13 @@ mkCounter = do
 -- Have a look at the docs for the System.IO module for help.
 
 hFetchLines :: Handle -> [Int] -> IO [String]
-hFetchLines h nums = hFetchLines' 0 nums <$> (lines <$> hGetContents h)
+hFetchLines h nums = hFetchLines' 1 nums . lines <$> hGetContents h
 
 hFetchLines' :: Int -> [Int] -> [String] -> [String]
 hFetchLines' m (n:nums) (s:ss)
     | m == n = s:hFetchLines' (m + 1) nums ss
     | otherwise = hFetchLines' (m + 1) (n:nums) ss
 hFetchLines' _ _ _ = []
---     let f :: ([String], [Int]) -> (Int, String) -> ([String], [Int])
---         f (r, ns) (c, v) = fromMaybe (r, ns) $ safeHeadTail ns >>= \(n, ns) -> return $ if n == c then (r ++ [v], ns) else (r, n:ns)
---     in fmap fst $ foldM ((fmap . fmap) return f) ([], nums) <$> zip [1..] <$> s >>= id
---     -- in fst <$> foldr (flip f) ([], nums) <$> zip [1..] <$> s
-
--- safeHeadTail :: [a] -> Maybe (a, [a])
--- safeHeadTail [] = Nothing
--- safeHeadTail (x:xs) = Just (x, xs)
-
--- fromMaybe :: a -> Maybe a -> a
--- fromMaybe a Nothing = a
--- fromMaybe _ (Just a)  = a
 
 ------------------------------------------------------------------------------
 -- Ex 17: CSV is a file format that stores a two-dimensional array of
@@ -326,7 +309,7 @@ split :: (Char -> Bool) -> String -> [String]
 split = let 
     split' cur _ [] = [reverse cur]
     split' cur p (c:cs) = if p c
-        then (reverse cur):split' "" p cs
+        then reverse cur:split' "" p cs
         else split' (c:cur) p cs
     in split' ""
 
@@ -375,7 +358,7 @@ compareFiles :: FilePath -> FilePath -> IO ()
 compareFiles a b = do
     as <- openFile a ReadMode >>= hGetContents
     bs <- openFile b ReadMode >>= hGetContents
-    forM_ (lines as `zip` lines bs) $ \(a, b) -> do
+    forM_ (lines as `zip` lines bs) $ \(a, b) ->
         when (a /= b) $ do
             putStrLn $ "< " ++ a
             putStrLn $ "> " ++ b
