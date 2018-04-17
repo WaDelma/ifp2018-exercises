@@ -92,7 +92,10 @@ secondSmallest as =
 
 -- NOTE: I really would like to replace Num with Rig/Semiring
 incrementKey :: (Eq k, Num v) => k -> [(k,v)] -> [(k,v)]
-incrementKey key m = (\(k, v) -> if k == key then (k, v + 1) else (k, v)) <$> m
+incrementKey key m = (\v -> id *** onlyIf (fst v == key) (+1) $ v) <$> m
+
+onlyIf :: Bool -> (a -> a) -> a -> a
+onlyIf b f = if b then f else id
 
 ------------------------------------------------------------------------------
 -- Ex 5: compute the average of a list of values of the Fractional
@@ -180,13 +183,13 @@ instance Eq Vector where
 -- abs (Vector (-1) 2 (-3))    ==> Vector 1 2 3
 -- signum (Vector (-1) 2 (-3)) ==> Vector (-1) 1 (-1)
 
-(^^.) :: (Functor t, Functor u) => (b -> c) -> (a -> t (u b)) -> a -> t (u c)
-(^^.) f g = (f .:) . g
+(..:) :: (Functor f, Functor g) => (a -> b) -> (c -> f (g a)) -> c -> f (g b)
+(..:) = (.) . (.:)
 
 instance Num Vector where
-  (+) = apEmbed2 vl $ uncurry (+) ^^. zip
-  (-) = apEmbed2 vl $ uncurry (-) ^^. zip
-  (*) = apEmbed2 vl $ uncurry (*) ^^. zip
+  (+) = apEmbed2 vl $ uncurry (+) ..: zip
+  (-) = apEmbed2 vl $ uncurry (-) ..: zip
+  (*) = apEmbed2 vl $ uncurry (*) ..: zip
   abs = apEmbed vl (abs <$>)
   signum = apEmbed vl (signum <$>)
   fromInteger a = Vector a a a
@@ -211,7 +214,9 @@ data ITree = ILeaf | INode Int ITree ITree
   deriving Show
 
 instance Eq ITree where
-  (==) = error "implement me"
+  (==) ILeaf ILeaf = True
+  (==) (INode i l r) (INode i' l' r') = (i, l, r) == (i', l', r')
+  (==) _ _ = False 
 
 ------------------------------------------------------------------------------
 -- Ex 12: here is a list type parameterized over the type it contains.
@@ -222,7 +227,9 @@ data List a = Empty | LNode a (List a)
   deriving Show
 
 instance Eq a => Eq (List a) where
-  (==) = error "implement me"
+  (==) Empty Empty = True
+  (==) (LNode h t) (LNode h' t') = (h, t) == (h', t')
+  (==) _ _ = False
 
 ------------------------------------------------------------------------------
 -- Ex 13: Implement the function incrementAll that takes a functor
@@ -233,7 +240,7 @@ instance Eq a => Eq (List a) where
 --   incrementAll (Just 3.0)  ==>  Just 4.0
 
 incrementAll :: (Functor f, Num n) => f n -> f n
-incrementAll x = undefined
+incrementAll x = (+1) <$> x
 
 ------------------------------------------------------------------------------
 -- Ex 14: below you'll find a type Result that works a bit like Maybe,
@@ -246,13 +253,17 @@ data Result a = MkResult a | NoResult | Failure String
   deriving (Show,Eq)
 
 instance Functor Result where
-  fmap f result = error "implement me"
+  fmap f (MkResult a) = MkResult $ f a
+  fmap _ NoResult = NoResult
+  fmap _ (Failure s) = Failure s
 
 ------------------------------------------------------------------------------
 -- Ex 15: Implement the instance Functor List (for the datatype List
 -- from ex 12)
 
 instance Functor List where
+  fmap _ Empty = Empty
+  fmap f (LNode h t) = LNode (f h) (f <$> t)
 
 ------------------------------------------------------------------------------
 -- Ex 16: Fun a is a type that wraps a function Int -> a. Implement a
@@ -267,6 +278,7 @@ runFun :: Fun a -> Int -> a
 runFun (Fun f) x = f x
 
 instance Functor Fun where
+  fmap f (Fun g) = Fun $ f . g
 
 ------------------------------------------------------------------------------
 -- Ex 17: Define the operator ||| that works like ||, but forces its
@@ -282,7 +294,7 @@ instance Functor Fun where
 -- pattern matching.
 
 (|||) :: Bool -> Bool -> Bool
-x ||| y = undefined
+x ||| y = y || x
 
 ------------------------------------------------------------------------------
 -- Ex 18: Define the function boolLength, that returns the length of a
@@ -294,7 +306,7 @@ x ||| y = undefined
 -- Huom! length [False,undefined] ==> 2
 
 boolLength :: [Bool] -> Int
-boolLength xs = undefined
+boolLength xs = foldr (flip seq $ (+1)) 0 xs
 
 ------------------------------------------------------------------------------
 -- Ex 19: this and the next exercise serve as an introduction for the
@@ -326,7 +338,9 @@ boolLength xs = undefined
 --  (True,True,False)
 
 threeRandom :: (Random a, RandomGen g) => g -> (a,a,a)
-threeRandom g = undefined
+threeRandom g =
+  let a1:a2:a3:_ = randoms g
+  in (a1, a2, a3)
 
 ------------------------------------------------------------------------------
 -- Ex 20: given a Tree (same type as on Week 3), randomize the
