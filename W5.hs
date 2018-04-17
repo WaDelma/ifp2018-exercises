@@ -35,7 +35,7 @@ import Control.Arrow
 x %$ y = x ++ y ++ x
 
 (*!) :: Int -> a -> [a]
-n *! val = const val <$> [0..n]
+n *! val = const val <$> [1..n]
 
 ------------------------------------------------------------------------------
 -- Ex 2: implement the function allEqual which returns True if all
@@ -51,7 +51,7 @@ n *! val = const val <$> [0..n]
 -- you remove the Eq a => constraint from the type!
 
 allEqual :: Eq a => [a] -> Bool
-allEqual (x:xs) = isJust $ foldM (fstSatisfies (==)) x $ xs
+allEqual (x:xs) = isJust $ foldM (fstSatisfies (==)) x xs
 allEqual _ = True
 
 fstSatisfies p a b = if p a b then Just a else Nothing
@@ -92,7 +92,7 @@ secondSmallest as =
 
 -- NOTE: I really would like to replace Num with Rig/Semiring
 incrementKey :: (Eq k, Num v) => k -> [(k,v)] -> [(k,v)]
-incrementKey key m = (\v -> id *** onlyIf (fst v == key) (+1) $ v) <$> m
+incrementKey key m = (\v -> second (onlyIf (fst v == key) (+1)) v) <$> m
 
 onlyIf :: Bool -> (a -> a) -> a -> a
 onlyIf b f = if b then f else id
@@ -111,7 +111,7 @@ onlyIf b f = if b then f else id
 
 
 average :: Fractional a => [a] -> a
-average xs = sum xs / (fromIntegral $ length xs)
+average xs = sum xs / fromIntegral (length xs)
 
 ------------------------------------------------------------------------------
 -- Ex 6: define an Eq instance for the type Foo below.
@@ -130,18 +130,12 @@ instance Eq Foo where
 ------------------------------------------------------------------------------
 -- Ex 7: implement an Ord instance for Foo so that Quux < Bar < Xyzzy
 
-(.:) :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b) 
-(.:) = (fmap.fmap)
-
 instance Ord Foo where
   compare a b | a == b = EQ
   compare Quux _ = LT
+  compare Xyzzy _ = GT
   compare _ Quux = GT
   compare _ Xyzzy = LT
-  compare Xyzzy _ = GT
-  (<=) = (/=GT) .: compare
-  min a b = if a <= b then a else b
-  max a b = if a <= b then b else a
 
 ------------------------------------------------------------------------------
 -- Ex 8: here is a type for a 3d vector. Implement an Eq instance for it.
@@ -149,6 +143,8 @@ instance Ord Foo where
 data Vector = Vector Integer Integer Integer
   deriving Show
 
+(.:) :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b) 
+(.:) = fmap . fmap
 
 data Iso a b = Iso {
   embed :: a -> b,
@@ -306,7 +302,7 @@ x ||| y = y || x
 -- Huom! length [False,undefined] ==> 2
 
 boolLength :: [Bool] -> Int
-boolLength xs = foldr (flip seq $ (+1)) 0 xs
+boolLength = foldr (`seq` (+1)) 0
 
 ------------------------------------------------------------------------------
 -- Ex 19: this and the next exercise serve as an introduction for the
@@ -362,6 +358,9 @@ threeRandom g =
 
 data Tree a = Leaf | Node a (Tree a) (Tree a)
   deriving Show
+
+instance Functor Tree a where
+  fmap _ Leaf = Leaf
 
 randomizeTree :: (Random a, RandomGen g) => Tree b -> g -> (Tree a,g)
 randomizeTree t g = undefined
