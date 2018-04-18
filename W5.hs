@@ -1,3 +1,4 @@
+{-#LANGUAGE DeriveFunctor, DeriveTraversable, DeriveFoldable#-}
 module W5 where
 
 import System.Random
@@ -54,6 +55,7 @@ allEqual :: Eq a => [a] -> Bool
 allEqual (x:xs) = isJust $ foldM (fstSatisfies (==)) x xs
 allEqual _ = True
 
+fstSatisfies :: (a -> b -> Bool) -> a -> b -> Maybe a
 fstSatisfies p a b = if p a b then Just a else Nothing
 
 ------------------------------------------------------------------------------
@@ -200,8 +202,11 @@ instance Num Vector where
 -- freqs [False,False,False,True]
 --   ==> [(3,False),(1,True)]
 
-freqs :: (Eq a, Ord a) => [a] -> [(Int,a)]
-freqs xs = undefined
+dup :: a -> (a, a)
+dup a = (a, a)
+
+freqs :: Eq a => [a] -> [(Int,a)]
+freqs xs = (first $ length . (`elemIndices` xs)) . dup <$> nub xs
 
 ------------------------------------------------------------------------------
 -- Ex 11: implement an Eq instance for the following binary tree type
@@ -357,10 +362,7 @@ threeRandom g =
 --  (Node (-2493721835987381530) Leaf Leaf,1891679732 2103410263)
 
 data Tree a = Leaf | Node a (Tree a) (Tree a)
-  deriving Show
-
-instance Functor Tree a where
-  fmap _ Leaf = Leaf
+  deriving (Show, Functor, Foldable, Traversable)
 
 randomizeTree :: (Random a, RandomGen g) => Tree b -> g -> (Tree a,g)
-randomizeTree t g = undefined
+randomizeTree t g = undefined --mapM (const (random g)) t
