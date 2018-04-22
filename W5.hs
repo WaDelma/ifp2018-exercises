@@ -1,4 +1,3 @@
-{-#LANGUAGE DeriveFunctor, DeriveTraversable, DeriveFoldable#-}
 module W5 where
 
 import System.Random
@@ -363,12 +362,32 @@ threeRandom g =
 --  (Node (-2493721835987381530) Leaf Leaf,1891679732 2103410263)
 
 data Tree a = Leaf | Node a (Tree a) (Tree a)
-  deriving (Show, Functor, Foldable, Traversable)
+  deriving Show
 
-randomizeTree :: (Random a, RandomGen g) => Tree b -> g -> (Tree a,g)
-randomizeTree (Node _ l r) g =
-  let (a, g') = random g
-      (l', g'') = randomizeTree l g'
-      (r', g''') = randomizeTree r g''
-  in (Node a l' r', g''')
-randomizeTree _ g = (Leaf, g)
+newtype State s a = State { runState :: s -> (a, s) }
+
+instance Functor (State s) where
+  fmap = liftM
+
+instance Applicative (State s) where
+  pure = return
+  (<*>) = ap
+
+instance Monad (State s) where
+  return x = State $ (,) x
+  p >>= k = State $ \s ->
+    let (x, s') = runState p s
+    in runState (k x) s'
+
+getRandom :: (Random a, RandomGen g) => State g a
+getRandom = State random
+
+randomizeTree :: (Random a, RandomGen g) => Tree b -> g -> (Tree a, g)
+randomizeTree t = runState $ randomizeTree' t
+
+randomizeTree' :: (Random a, RandomGen g) => Tree b -> State g (Tree a)
+randomizeTree' (Node _ l r) =
+  Node <$> getRandom
+       <*> randomizeTree' l
+       <*> randomizeTree' r
+randomizeTree' _ = pure Leaf
