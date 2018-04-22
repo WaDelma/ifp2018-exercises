@@ -295,7 +295,8 @@ instance Functor Fun where
 -- pattern matching.
 
 (|||) :: Bool -> Bool -> Bool
-x ||| y = y || x
+_ ||| True = True
+a ||| _ = a
 
 ------------------------------------------------------------------------------
 -- Ex 18: Define the function boolLength, that returns the length of a
@@ -365,4 +366,9 @@ data Tree a = Leaf | Node a (Tree a) (Tree a)
   deriving (Show, Functor, Foldable, Traversable)
 
 randomizeTree :: (Random a, RandomGen g) => Tree b -> g -> (Tree a,g)
-randomizeTree t g = undefined --mapM (const (random g)) t
+randomizeTree (Node _ l r) g =
+  let (a, g') = random g
+      (l', g'') = randomizeTree l g'
+      (r', g''') = randomizeTree r g''
+  in (Node a l' r', g''')
+randomizeTree _ g = (Leaf, g)
