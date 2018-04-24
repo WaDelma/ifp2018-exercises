@@ -21,7 +21,10 @@ import Control.Monad.Trans.State
 --   countRange 1 3 [1,2,3,4,5] ==> 3
 
 countRange :: Int -> Int -> [Int] -> Int
-countRange low high is = undefined
+countRange low high is = length $ filter (inRange low high) is
+
+inRange :: Ord a => a -> a -> a -> Bool
+inRange low high i = low <= i && i <= high
 
 ------------------------------------------------------------------------------
 -- Ex 2: Build a string that looks like an n*m chessboard:
@@ -39,7 +42,12 @@ countRange low high is = undefined
 -- in GHCi
 
 chess :: Int -> Int -> String
-chess = undefined
+chess n m = 
+  let line a b = (take m $ alternate a b) ++ "\n"
+  in concat $ take n $ alternate (line '#' '.')  (line '.' '#')
+
+alternate :: t -> t -> [t]
+alternate a b = a:alternate b a
 
 ------------------------------------------------------------------------------
 -- Ex 3: Implement the function palindromify that chops a character
