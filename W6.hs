@@ -1,9 +1,12 @@
 module W6 where
 
+import Control.Arrow
 import Control.Monad
 import Control.Monad.Trans.State
 import Data.Char
+import Data.Function
 import Data.List
+import Data.Ix
 
 -- Week 6: Monads
 
@@ -42,18 +45,27 @@ readNames s =
 -- (NB! There are obviously other corner cases like the inputs " " and
 -- "a b c", but you don't need to worry about those here)
 split :: String -> Maybe (String,String)
-split s = undefined
+split s = do
+  n <- findIndex (==' ') s
+  return $ second tail $ splitAt n s
 
 -- checkDuplacate should take a pair of two strings and return Nothing
 -- if they are the same. Otherwise the strings are returned.
 checkDuplicate :: (String, String) -> Maybe (String, String)
-checkDuplicate (for,sur) = undefined
+checkDuplicate x = mfilter (not . uncurry (==)) $ Just x
 
 -- checkCapitals should take a pair of two strings and return them
 -- unchanged if both start with a capital letter. Otherwise Nothing is
 -- returned.
 checkCapitals :: (String, String) -> Maybe (String, String)
-checkCapitals (for,sur) = undefined
+checkCapitals x = mfilter (uncurry (&&) . (isCapitalized *** isCapitalized)) $ Just x
+
+isCapitalized :: String -> Bool
+isCapitalized a = any isUpper $ safeHead a
+
+safeHead :: [a] -> Maybe a
+safeHead (a:_) = Just a
+safeHead _ = Nothing
 
 ------------------------------------------------------------------------------
 -- Ex 2: implement a function myDrop that works just like drop, but
@@ -77,7 +89,11 @@ checkCapitals (for,sur) = undefined
 --    ==> Nothing
 
 myDrop :: Maybe Int -> Maybe [a] -> Maybe [a]
-myDrop mi ml = undefined
+myDrop mi ml = do
+  i <- mi
+  l <- ml
+  when (((fmap.fmap) not inRange) (0, length l) i) Nothing
+  return $ drop i l
 
 ------------------------------------------------------------------------------
 -- Ex 3: given a list of values and a list of indices, return the sum
