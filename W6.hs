@@ -92,7 +92,7 @@ myDrop :: Maybe Int -> Maybe [a] -> Maybe [a]
 myDrop mi ml = do
   i <- mi
   l <- ml
-  when (((fmap.fmap) not inRange) (0, length l) i) Nothing
+  when (not $ inRange (0, length l) i) Nothing
   return $ drop i l
 
 ------------------------------------------------------------------------------
@@ -155,9 +155,17 @@ instance Applicative Logger where
 msg :: String -> Logger ()
 msg s = Logger [s] ()
 
+binomMsg :: Show a => a -> a -> Logger ()
+binomMsg n k = msg $ "B(" ++ show n ++ "," ++ show k ++")"
+
 -- Implement this:
 binom :: Integer -> Integer -> Logger Integer
-binom n k = undefined
+binom n 0 = 1 <$ binomMsg n 0
+binom 0 k | k > 0 = 0 <$ binomMsg 0 k
+binom n k = do
+  a <- binom (n-1) (k-1)
+  b <- binom (n-1) k
+  a + b <$ binomMsg n k
 
 ------------------------------------------------------------------------------
 -- Ex 5: using the State monad, write the operation update that first
@@ -169,7 +177,7 @@ binom n k = undefined
 --    ==> ((),7)
 
 update :: State Int ()
-update = undefined
+update = state $ (,) () . (+1) . (*2)
 
 ------------------------------------------------------------------------------
 -- Ex 6: using the State monad, walk through a list and add up all the
