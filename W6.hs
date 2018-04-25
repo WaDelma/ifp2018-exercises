@@ -468,9 +468,9 @@ data Result a = MkResult a | NoResult | Failure String deriving (Show,Eq)
 
 -- A straightforward Functor instance
 instance Functor Result where
-  fmap f (MkResult a) = MkResult (f a)
-  fmap _ NoResult = NoResult
+  fmap f (MkResult a) = MkResult $ f a
   fmap _ (Failure s) = Failure s
+  fmap _ _ = NoResult
 
 -- Disregard this instance. In recent versions of the Haskell standard
 -- library, all Monads must also be Applicative. These exercises don't
@@ -481,9 +481,9 @@ instance Applicative Result where
 
 instance Monad Result where
   return = MkResult
-  (>>=) NoResult _ = NoResult
-  (>>=) (Failure s) _ = Failure s
   (>>=) (MkResult a) f = f a
+  (>>=) (Failure s) _ = Failure s
+  (>>=) _ _ = NoResult
   fail = Failure
 
 ------------------------------------------------------------------------------
