@@ -80,8 +80,7 @@ palindromify s = palindromify $ take (length s - 2) $ tail s
 --   unrepeat [1,1,2,1,3,3,3] => [1,2,1,3]
 
 unrepeat :: Eq a => [a] -> [a]
-unrepeat (a1:a2:a3:as) | a1 == a2 && a2 == a3 =
-  a1:unrepeat as
+unrepeat (c:a:as) | c == a = unrepeat (c:as)
 unrepeat (a:as) = a:unrepeat as
 unrepeat _ = []
 
@@ -94,11 +93,15 @@ unrepeat _ = []
 --   sumEithers [Left "fail", Right 1, Left "xxx", Right 2] ==> Just 3
 
 sumEithers :: [Either String Int] -> Maybe Int
-sumEithers s = foldM ((<*>) (+)) (Just 0) $ takeRight <$> s
+sumEithers ss = do
+    let is = rights ss
+    when (length is == 0) Nothing
+    return $ sum is
 
-takeRight :: Either a b -> Maybe b
-takeRight (Right b) = Just b
-takeRight _ = Nothing
+rights :: [Either a b] -> [b]
+rights ((Right b):es) = b:rights es
+rights (_:es) = rights es
+rights _ = []
 
 ------------------------------------------------------------------------------
 -- Ex 6: Define the data structure Shape with values that can be
@@ -115,17 +118,22 @@ takeRight _ = Nothing
 --
 -- All dimensions should be Doubles.
 
-data Shape = Undefined
+data Shape = Circle { radius :: Double } | Rectangle { width :: Double, height :: Double }
   deriving Show -- leave this line in place
 
 circle :: Double -> Shape
-circle = undefined
+circle = Circle
 
 rectangle :: Double -> Double -> Shape
-rectangle = undefined
+rectangle = Rectangle
 
+tau :: Double
+tau = 2 * pi
+
+-- I really wanted to add 'NamedFieldPuns' language extension
 area :: Shape -> Double
-area = undefined
+area Circle { radius=radius } = 1/2 * tau * radius^2
+area Rectangle { width=width, height=height } = width * height
 
 ------------------------------------------------------------------------------
 -- Ex 7: Here's a Card type for a deck of cards with just two suits
@@ -144,10 +152,17 @@ data Card = Heart Int | Spade Int | Joker
   deriving Show
 
 instance Eq Card where
-  a == b = undefined -- implement me!
+  (Heart a) == (Heart b) = a == b
+  (Spade a) == (Spade b) = a == b
+  Joker == Joker = True
+  _ == _ = False
 
 instance Ord Card where
-  -- implement me!
+  (Spade _) <= (Heart _) = True
+  (Heart a) <= (Heart b) = a <= b
+  (Spade a) <= (Spade b) = a <= b
+  _ <= Joker = True
+  _ <= _ = False
 
 ------------------------------------------------------------------------------
 -- Ex 8: Here's a type Twos for things that always come in pairs. It's
@@ -160,7 +175,8 @@ data Twos a = End a a | Continue a a (Twos a)
   deriving (Show, Eq)
 
 instance Functor Twos where
-  -- implement me!
+  fmap f (End a b) = End (f a) (f b)
+  fmap f (Continue a b r) = Continue (f a) (f b) (f <$> r)
 
 ------------------------------------------------------------------------------
 -- Ex 9: Use the state monad to update the state with the sum of the
@@ -172,7 +188,9 @@ instance Functor Twos where
 --   6
 
 step :: Int -> State Int ()
-step = undefined
+step i = if i `mod` 2 == 0
+  then modify (+i)
+  else return ()
 
 sumEvens :: [Int] -> State Int ()
 sumEvens is = forM_ is step
@@ -214,11 +232,11 @@ multiply :: Int -> Env String
 multiply n = MkEnv (\name -> concat (replicate n name))
 
 instance Functor Env where
-  fmap = undefined -- implement me
+  fmap f (MkEnv g) = MkEnv $ f . g
 
 instance Monad Env where
-  e >>= f = undefined
-  return x = undefined
+  (MkEnv f) >>= g = MkEnv $ \s -> runEnv (g . f $ s) s
+  return x = MkEnv $ \_ -> x
 
 -- Disregard this instance. In recent versions of the Haskell standard
 -- library, all Monads must also be Applicative. These exercises don't
