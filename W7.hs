@@ -61,7 +61,8 @@ alternate a b = a:alternate b a
 --   palindromify "abracacabra" ==> "acaca"
 
 palindromify :: String -> String
-palindromify = undefined
+palindromify s | s == reverse s = s
+palindromify s = palindromify $ take (length s - 2) $ tail s
 
 ------------------------------------------------------------------------------
 -- Ex 4: Remove all repetitions of elements in a list. That is, if an
@@ -79,7 +80,10 @@ palindromify = undefined
 --   unrepeat [1,1,2,1,3,3,3] => [1,2,1,3]
 
 unrepeat :: Eq a => [a] -> [a]
-unrepeat = undefined
+unrepeat (a1:a2:a3:as) | a1 == a2 && a2 == a3 =
+  a1:unrepeat as
+unrepeat (a:as) = a:unrepeat as
+unrepeat _ = []
 
 ------------------------------------------------------------------------------
 -- Ex 5: Given a list of Either String Int, sum all the integers.
@@ -90,7 +94,11 @@ unrepeat = undefined
 --   sumEithers [Left "fail", Right 1, Left "xxx", Right 2] ==> Just 3
 
 sumEithers :: [Either String Int] -> Maybe Int
-sumEithers = undefined
+sumEithers s = foldM ((<*>) (+)) (Just 0) $ takeRight <$> s
+
+takeRight :: Either a b -> Maybe b
+takeRight (Right b) = Just b
+takeRight _ = Nothing
 
 ------------------------------------------------------------------------------
 -- Ex 6: Define the data structure Shape with values that can be
